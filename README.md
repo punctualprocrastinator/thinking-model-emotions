@@ -25,7 +25,7 @@ Using contrastive activation analysis on **OLMo-3-7B-Think** across 596 reasonin
 
 If thinking models pre-commit to answers before reasoning, then Chain-of-Thought monitoring — the primary oversight tool for frontier models — may be monitoring post-hoc rationalisation rather than genuine deliberation. The internal emotional dynamics we detect (frustration, arousal, epistemic engagement) operate below the text layer and are invisible to output-level monitoring.
 
-This work is Phase 0 of a research program on **emotion deflection vectors** — representations that activate when models suppress internal states from their output. See [the ERA proposal](era.md) for the full research agenda.
+This work is Phase 0 of a research program on **emotion deflection vectors** — representations that activate when models suppress internal states from their output. See [the research direction](research_direction.md) for the full research agenda.
 
 ---
 
