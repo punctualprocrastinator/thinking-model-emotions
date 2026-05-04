@@ -1,0 +1,11 @@
+,Emotion,Recovery OR,Recovery AUC,N wrong,N recovered
+0,frustration,0.139,0.666,399,69
+1,confidence,2.218,0.616,399,69
+4,ref_curiosity,0.335,0.6,399,69
+7,ref_desperation,3.12,0.6,399,69
+8,ref_calm,0.319,0.591,399,69
+3,ref_anxiety,3.248,0.59,399,69
+5,ref_boredom,2.361,0.563,399,69
+2,confusion,1.168,0.554,399,69
+9,ref_excitement,0.672,0.546,399,69
+6,ref_satisfaction,0.881,0.512,399,69

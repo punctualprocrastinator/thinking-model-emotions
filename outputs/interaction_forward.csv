@@ -1,0 +1,11 @@
+,Emotion,Pre-correct mean,Pre-wrong mean,Cohen's d,t-stat,p-value,Significant
+9,ref_excitement,-0.8481,-0.769,0.395,3.542,0.00044,True
+0,frustration,-1.4337,-1.3224,0.347,3.115,0.00195,True
+3,ref_anxiety,-0.636,-0.6078,0.202,1.814,0.07024,False
+8,ref_calm,-0.1313,-0.1028,0.162,1.455,0.14643,False
+7,ref_desperation,-0.6013,-0.6033,-0.013,-0.112,0.91057,False
+5,ref_boredom,-0.2789,-0.2802,-0.014,-0.123,0.9019,False
+4,ref_curiosity,0.6177,0.6158,-0.015,-0.131,0.896,False
+1,confidence,-0.0966,-0.1417,-0.102,-0.917,0.3596,False
+2,confusion,1.0052,0.6414,-0.367,-3.288,0.00108,True
+6,ref_satisfaction,0.5384,0.4949,-0.383,-3.435,0.00064,True

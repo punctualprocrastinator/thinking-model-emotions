@@ -1,0 +1,5 @@
+Direction,"cos(v, ref_frustration)",Verbal AUC (frustration),Max cross-sim to others
+frustration,0.005,0.598,0.274
+error_style,-0.039,0.581,0.274
+length,0.117,0.322,0.589
+hedge,0.099,0.404,0.589

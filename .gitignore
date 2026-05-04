@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+*.pkl
+*.npy
+*.pt
+*.bin
+*.safetensors
+incremental.pkl
+diff_output.txt
+scratch_test*.py
+*.ipynb_checkpoints/
