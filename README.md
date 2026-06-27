@@ -8,7 +8,7 @@
 
 ## Key Findings
 
-Using contrastive activation analysis on **OLMo-3-7B-Think** across 596 reasoning traces (GPQA Diamond, MMLU Hard, MGSM):
+Using contrastive activation analysis on **OLMo-3-7B-Think** across 596 reasoning traces (GPQA Diamond, MMLU Hard, MGSM). Of those 596, only 46 form correct/wrong **contrastive pairs** (same problem, one sample right, one sample wrong); that 46-pair subset is what the frustration direction is extracted from:
 
 | Finding | Metric | Value |
 |---|---|---|

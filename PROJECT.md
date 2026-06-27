@@ -13,7 +13,7 @@ We've found that open-weight thinking models (OLMo-3-7B-Think) commit to an answ
 ## 2. What we already have (Phase 0, done)
 
 - Model: OLMo-3-7B-Think
-- 596 reasoning traces captured across GPQA Diamond, MMLU Hard, and MGSM (6 languages)
+- 596 reasoning traces captured across GPQA Diamond, MMLU Hard, and MGSM (6 languages). Of these, only 46 form correct/wrong **contrastive pairs** (same problem, one right sample, one wrong sample); that 46-pair subset, not the full 596, is what the frustration direction is extracted from
 - Pre-commitment probe at the last question token: **AUC = 0.780**
 - Frustration direction (contrastive, unsupervised, extracted at layer 15): predicts recovery from wrong pre-commitment, **AUC = 0.666**
 - Cross-lingual transfer of the frustration direction: **p = 0.0017**
@@ -24,7 +24,7 @@ This is signal, not noise. It is not yet a paper, and not yet a system.
 
 ### 2.1 Methodological scope note: preliminary approach due to compute restriction
 
-Phase 0 was run under a hard compute constraint: a single GH200, one weekend, $0 budget. 596 traces, one model, traces capped at 1500 tokens because OLMo-3-7B-Think rarely emits `</think>` on graduate-level problems within 4096 tokens. This forced a **preliminary, compute-efficient approximation** of the full contrastive-extraction methodology, not the exact protocol at scale: fewer contrastive pairs (46), no multi-model cross-validation, no causal patching yet.
+Phase 0 was run under a hard compute constraint: a single GH200, one weekend, $0 budget. 596 traces total, one model, traces capped at 1500 tokens because OLMo-3-7B-Think rarely emits `</think>` on graduate-level problems within 4096 tokens. This forced a **preliminary, compute-efficient approximation** of the full contrastive-extraction methodology, not the exact protocol at scale: only 46 of the 596 traces formed usable correct/wrong contrastive pairs, no multi-model cross-validation, no causal patching yet.
 
 Once this project is funded (§5), we follow the **exact methodology** at the scale the literature uses for comparable claims (Cox et al. 2026; "Stop Before You Fail" 2025): 5,000+ traces per model, 3 to 4 model families, untruncated reasoning traces on models that reliably close `</think>`, and full causal validation via activation patching and dose-response steering. We expect this to close the current AUC gap (0.780 toward likely above 0.85) and sharpen the frustration verbal-marker signal (0.598 toward likely above 0.70); see the scaling table in `technical_report_precommitment_frustration.md` §4.4 for the concrete per-metric predictions. The current numbers are a lower bound produced under the cheapest possible version of the method, not the ceiling of what the method can show.
 

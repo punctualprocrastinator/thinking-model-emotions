@@ -21,7 +21,7 @@ If internal affective state diverges from what the visible Chain-of-Thought impl
 
 ## 3. Preliminary Results: Phase 0 Already Validated
 
-Phase 0 ran on **OLMo-3-7B-Think**, using contrastive activation analysis across 596 reasoning traces (GPQA Diamond, MMLU Hard, MGSM in 6 languages):
+Phase 0 ran on **OLMo-3-7B-Think**, using contrastive activation analysis across 596 reasoning traces (GPQA Diamond, MMLU Hard, MGSM in 6 languages). Of those 596 traces, only 46 form correct/wrong **contrastive pairs** (same problem, one right sample and one wrong sample); the frustration direction is extracted from that 46-pair subset, not the full 596:
 
 1. **Pre-commitment exists (AUC = 0.780).** A linear probe on activations at the last question token — before any reasoning begins — predicts final answer correctness (n=480, 5-fold CV). The model encodes outcome prediction in its residual stream before generating a single CoT token.
 2. **Functional frustration is a real, unsupervised computational direction.** A contrastive direction at layer 15/32, extracted with no correctness labels, predicts verbal self-correction markers (AUC = 0.598), is geometrically independent from confound directions (max cross-similarity = 0.274), and only 5.3% of its variance is explained by surface features (trace length, hedging, restarts).

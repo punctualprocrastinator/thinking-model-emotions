@@ -46,7 +46,7 @@ We generate reasoning traces on three benchmarks:
 | MMLU Hard | 40 | 6 (T=0.6) | Hard multichoice, acc ~28% |
 | MGSM (6 languages) | 48 | 2 (T=0.6) | Cross-lingual transfer validation |
 
-For each problem, 6 independent samples at temperature 0.6 provide contrastive pairs (same problem, different correctness outcomes). Total corpus: 596 traces, 46 contrastive pairs, 13 cross-lingual pairs.
+For each problem, 6 independent samples at temperature 0.6 provide contrastive pairs (same problem, different correctness outcomes). **596 is the total trace count; 46 is a much smaller derived subset, not a separate sample.** A "contrastive pair" only forms when a problem's samples split between correct and wrong; problems where all samples agreed (all correct or all wrong) contribute traces to the 596 total but no pair. Total corpus: 596 traces, of which 46 form contrastive pairs (13 of those 46 are cross-lingual MGSM pairs). The frustration direction is extracted from the 46 pairs only; the pre-commitment probe instead uses per-trace correctness labels and so draws on a larger slice of the 596 (480 traces, see Table 1).
 
 ### 2.3 Three-Pass Activation Capture
 
