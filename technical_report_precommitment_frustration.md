@@ -170,6 +170,7 @@ The emotion × commitment interaction (Table 3) shows precisely the pattern that
 - **Truncated traces**: The model never emitted `</think>` within 4096 tokens on hard problems. All thinking traces were capped at 1500 tokens. This is a known limitation of 7B thinking models on graduate-level tasks.
 - **Moderate effect sizes**: Verbal AUC of 0.598 and recovery AUC of 0.666 are above chance but not overwhelming. Larger models with more reliable reasoning may show stronger effects.
 - **No causal steering yet**: This report establishes correlational/predictive findings. Causal validation via activation steering (suppressing/amplifying frustration during reasoning) is in progress.
+- **Approximate, not exact, methodology**: every limitation above is a direct consequence of running this on $0 compute (a single GH200, one weekend). What is reported here is a compute-constrained **preliminary approximation** of the full contrastive-extraction methodology — not yet the exact protocol at the scale comparable studies use (Cox et al. 2026; "Stop Before You Fail" 2025, both at AUC > 0.9 with thousands of labeled traces). With secured funding, we follow the exact methodology at full scale (§4.4); we expect the numbers reported here to improve, not to represent a ceiling.
 
 ### 4.4 Scaling Expectations: These Results Are a Lower Bound
 
@@ -223,8 +224,17 @@ This work constitutes **Phase 0 (Replication and Validation)** of the deflection
 | Phase 1b: Connect to sandbagging | ⬜ Not yet | Requires sandbagging datasets (van der Weij) |
 | Phase 2: Causal steering | 🔶 In progress | Hook infrastructure built, first run debugging |
 | Phase 3: Circuit localisation | ⬜ Not yet | Layer dissociation (15 vs 31) provides starting point |
+| Attack-surface verification | 🔶 Spec complete, experiments not yet run | Mechanism + detection-layer design and zero-cost experiment spec in `ATTACK_SURFACE_AND_DEFENSE.md` |
 
 The pre-commitment finding is particularly relevant: if the model "knows" it will fail before reasoning, and generates a plausible-looking reasoning trace anyway, this is structurally identical to the post-hoc rationalisation failure mode that motivates the deflection vector hypothesis.
+
+### 5.1 Pre-commitment and frustration transients as an attack surface
+
+Beyond the naturally-occurring decoupling characterised above, we are separately verifying whether pre-commitment and frustration/emotion transients can be *induced* — i.e., whether they constitute an exploitable attack surface, not just a spontaneous phenomenon. Two documented mechanisms (directional ablation at inference time; backdoor-induced decoupling at training time — see `ATTACK_SURFACE_AND_DEFENSE.md` §1) produce signatures inside the exact two signals this report extracts: an anomalously flat/zero-pinned frustration trajectory, and an anomalously high pre-commitment AUC that's uncorrelated with the visible CoT. We specify (but, under the current $0 budget, have not yet run) four zero-GPU-cost experiments that test our detection layers against synthetic stand-ins for both mechanisms, built entirely from post-hoc manipulation of the activation checkpoints already saved for this report — no live attack generation. This converts the threat-model discussion from a citation list into a planned empirical claim once funded.
+
+A third mechanism, monitor/probe evasion (Mechanism C in `ATTACK_SURFACE_AND_DEFENSE.md` §1), targets the detector itself rather than the model: an adversary crafts an input designed to make our pre-commitment probe or frustration direction read clean while the model's actual behaviour diverges. This is plausible by analogy to the broader literature on adversarial attacks against linear probes and concept directions, but untested against our specific constructs — it is named as an open gap, not a defended-against case.
+
+Separately, the attacks cited above (Yamaguchi's caution-direction ablation; Anthropic's desperate-to-blackmail dose-response) target *jailbreak*, inducing harmful compliance, while our own recovery finding (frustration predicts recovery from a wrong pre-commitment, OR = 0.139) is measured only on *correctness*. We have not yet captured data on refusal/compliance outcomes, so the jailbreak relevance of this work is currently an analogy to Anthropic's result, not our own measurement. Closing that gap is named as a concrete forward goal in the companion project plan (`PROJECT.md` §4.4a).
 
 ---
 

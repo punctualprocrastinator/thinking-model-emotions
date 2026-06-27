@@ -9,3 +9,19 @@ incremental.pkl
 diff_output.txt
 scratch_test*.py
 *.ipynb_checkpoints/
+
+# Personal / career docs — not part of the research repo
+interview_prep.md
+interview_prep.pdf
+david.md
+david.pdf
+FINAL_CHEATSHEET.md
+MANIFUND_APPLICATION.md
+pivotal_mentors_2026_q3.md
+technical_qa.md
+technical_qa.pdf
+attacks.md
+results_to_direction.md
+results_to_direction.pdf
+methodology_walkthrough.md
+methodology_walkthrough.pdf

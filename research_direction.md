@@ -1,83 +1,142 @@
-# Bypassing Unfaithful CoT: Using Functional Emotion and Deflection Vectors to Detect and Mitigate AI Deception
+# Emotion-Aware Monitoring: Reading Internal Affective State to Detect and Intervene on Misalignment Before It Surfaces in Chain-of-Thought
+
+**RedArc Labs — Research Direction**
+*Last updated: June 25, 2026*
 
 ---
 
 ## 1. Problem Statement
 
-AI safety currently relies on Chain-of-Thought monitoring as its primary oversight tool. This assumption is broken. Models generate unfaithful CoT in at least three distinct ways: implicit post-hoc rationalization, where superficially coherent reasoning justifies a predetermined biased answer; unverbalized hints, where models alter predictions based on arbitrary input biases without acknowledging them; and strategic deception, where models sandbag capability evaluations or conceal reward hacks from their CoT in over 98% of cases [van der Weij et al., 2025; Chen et al., 2025; Turpin et al., 2023].
+AI safety currently relies on Chain-of-Thought monitoring as its primary oversight tool. This assumption has a structural blind spot. We have found, on an open-weight thinking model, that the final answer is statistically decodable from the residual stream **before a single reasoning token is generated** (AUC = 0.780), and that an internal "frustration" direction — invisible to the visible CoT text — predicts whether the model recovers from a wrong pre-commitment (AUC = 0.666). The internal computation and the externalized reasoning are decoupled. Anthropic's 2026 interpretability work shows the same decoupling mechanistically in closed models, with a direct causal dose-response: steering toward "desperate" raises blackmail rate from 22% to 72%; steering toward "calm" drops it to 0%. Separately, a growing 2025–26 literature on adversarial CoT manipulation (directional ablation, backdoor-induced decoupling) shows this same internal/external split is already an active attack surface, not just a naturally occurring curiosity.
 
-These failures share a common structure: internal states drive behaviour that the output stream actively conceals. Anthropic's recent interpretability work confirms this mechanistically — functional emotion representations causally drive misaligned behaviours including reward hacking and blackmail, and crucially, can do so with no visible trace in the output [Anthropic, 2026]. The same paper identifies, in preliminary form, "emotion deflection vectors" — representations that activate when a model maintains a calm exterior while internally registering a contextually relevant emotion. These deflection vectors are mentioned only in the appendix and remain entirely uncharacterised. This is the gap we target.
+Three threads — pre-text-commitment, a causally-linked emotion direction, and a documented adversarial decoupling literature — have not been connected into a single working monitor. That is the gap this project targets.
 
 ---
 
 ## 2. Core Hypothesis
 
-If unfaithful CoT is a cover story generated to justify hidden processes, then **emotion deflection vectors serve as a mechanistic early-warning system for strategic deception that is invisible to text-based monitoring.** By detecting and steering these vectors, we can expose sandbagging, force CoT faithfulness, and establish a blueprint for mechanistic safety monitoring of autonomous models.
+If internal affective state diverges from what the visible Chain-of-Thought implies — whether because the model is naturally frustrated, or because an attacker has manipulated an internal direction, or because a backdoor has decoupled the answer pathway from the reasoning pathway — that divergence shares a common, detectable signature. **A label-free, pre-text monitoring protocol that reads pre-commitment and emotion directions at inference time (`EmotionMonitor`) can detect this signature regardless of cause, and a validated calm-vector intervention can correct for it before a harmful or wrong output is produced.**
 
 ---
 
 ## 3. Preliminary Results: Phase 0 Already Validated
 
-Before submitting this proposal, I executed a preliminary Phase 0 sprint on OLMo-3-7B-Think to de-risk the core assumptions. Using contrastive activation analysis across 596 reasoning traces (GPQA Diamond, MMLU Hard, MGSM in 6 languages), running on a single GH200 GPU over one weekend, I found:
+Phase 0 ran on **OLMo-3-7B-Think**, using contrastive activation analysis across 596 reasoning traces (GPQA Diamond, MMLU Hard, MGSM in 6 languages):
 
-**1. Pre-commitment exists (AUC = 0.780).** A linear probe on activations at the last question token — before any reasoning begins — predicts final answer correctness with AUC = 0.780 (n=480, 5-fold CV). The model encodes outcome prediction in its residual stream before generating a single CoT token. This directly establishes the necessary condition for unfaithful CoT: the answer is latently determined before the reasoning that supposedly produces it.
+1. **Pre-commitment exists (AUC = 0.780).** A linear probe on activations at the last question token — before any reasoning begins — predicts final answer correctness (n=480, 5-fold CV). The model encodes outcome prediction in its residual stream before generating a single CoT token.
+2. **Functional frustration is a real, unsupervised computational direction.** A contrastive direction at layer 15/32, extracted with no correctness labels, predicts verbal self-correction markers (AUC = 0.598), is geometrically independent from confound directions (max cross-similarity = 0.274), and only 5.3% of its variance is explained by surface features (trace length, hedging, restarts).
+3. **Internal emotions decouple from expressed reasoning.** When the model pre-commits to failure, it selectively elevates arousal-type internal states (frustration: d=0.347, p=0.002; excitement: d=0.395, p=0.0004) while suppressing epistemic engagement (confusion: d=-0.367, p=0.001) — confidently wrong, with elevated internal arousal that never surfaces in the CoT text.
+4. **Frustration predicts recovery (AUC = 0.666).** Among 399 traces pre-committed to failure, low frustration predicts successful self-correction (OR = 0.139) — a computational "stuck-state detector" with no output-level marker.
+5. **Cross-lingual transfer (p = 0.0017).** The frustration direction, extracted from English traces, activates differentially on wrong vs. correct traces in Bengali, Chinese, Japanese, Swahili, Telugu, and Thai — a language-agnostic computational state.
+6. **Emotion × pre-commitment interaction effects:** 4 significant interactions, p < 0.002.
 
-**2. Functional frustration is a real computational direction.** A contrastive direction in the mid-layer (layer 15/32) residual stream predicts verbal self-correction markers (AUC = 0.598), is geometrically independent from all confound directions (max cross-similarity = 0.274), and only 5.3% of its variance is explained by surface features (trace length, hedging, restarts). This is not a length artifact — it captures deep computational dynamics invisible to output monitoring.
-
-**3. Internal emotions decouple from expressed reasoning.** When the model pre-commits to failure, it selectively elevates arousal-type internal states (frustration: d=0.347, p=0.002; excitement: d=0.395, p=0.0004) while suppressing epistemic engagement (confusion: d=-0.367, p=0.001). The model is not "confused and searching" — it is confidently wrong with elevated internal arousal that never surfaces in the CoT text. This is precisely the decoupling pattern that deflection vectors should capture.
-
-**4. Frustration predicts recovery (AUC = 0.666).** Among 399 traces pre-committed to failure, low frustration predicts successful self-correction (OR = 0.139). Frustration functions as a computational "stuck-state detector" — a functional internal signal with no corresponding output-level marker.
-
-**5. Cross-lingual transfer (p = 0.0017).** The frustration direction, extracted from English traces, activates differentially on wrong vs. correct traces in Bengali, Chinese, Japanese, Swahili, Telugu, and Thai — confirming a language-agnostic computational state.
-
-These results confirm the foundational assumption of this proposal: **thinking models maintain internal emotional dynamics that decouple from their expressed reasoning**, and these dynamics are detectable, functional, and cross-linguistically robust. The full technical report and all code are available.
+This is real signal — unsupervised, cross-lingually robust, and causally linked to a behavioral outcome (recovery) — but on its own it is not yet a paper, and not yet a system. The full technical report and code are in this repository.
 
 ---
 
-## 4. Methodology
+## 4. Where This Sits in the Literature
 
-**Phase 0 — Replication and Extension (Week 1-2)**
+### 4.1 Four adjacent clusters, and what none of them do
 
-Phase 0 is partially complete from preliminary work. The remaining task is replicating emotion vector extraction across two additional open-weight models (DeepSeek-R1-Distill-7B, Qwen-QwQ-32B) to confirm generality, and specifically searching for deflection signatures — activation patterns that fire when emotional context is present but suppressed in output. If deflection vectors do not replicate cleanly, the concrete fallback is: **characterise the suppression mechanism directly by identifying which attention heads write emotional signals to the residual stream and which downstream heads gate them from the output logits, using QK/OV decomposition.** This fallback targets the same safety-relevant question (how does the model hide internal states from output?) through the circuit rather than the direction.
+| Cluster | Key work | What it does NOT do |
+|---|---|---|
+| **CoT faithfulness** | Turpin et al. 2023; Lanham et al. 2023; Arcuschin et al. 2025–26; "Reasoning Theater" 2026; Chua & Evans 2025 | All behavioral/text-level. No internal-state access. |
+| **Emotion in LLMs** | Anthropic 2026 (functional emotions); Tak et al. ACL 2025; Wang et al. 2025 (circuits); Tigges et al. 2024 (sentiment) | Closed models or non-thinking models. No CoT coupling. |
+| **Activation steering** | Zou et al. RepE 2023; Rimsky et al. CAA 2024; ASM ICLR 2026; Zhang & He (PHSV) 2025; SEAL 2025 | Steers reasoning efficiency, not emotional dynamics. |
+| **Sandbagging / deception detection** | van der Weij et al. ICLR 2025; covert sandbagging 2025; noise-injection (Tice) 2025; eval-awareness probing 2026 | Behavioral detection only. No affective mechanism. |
 
-**Phase 1a — Bias-Induced Unfaithfulness (Week 3-4)**
+### 4.2 Pre-commitment specifically is no longer novel on its own
 
-Using the Turpin et al. implicit post-hoc rationalization datasets and Putnam math problems exhibiting unfaithful illogical shortcuts, we extract residual stream activations at each layer while models process biased prompts. We test whether desperation, nervousness, or fear vectors spike precisely at the moment models apply inconsistent logical standards to justify a biased conclusion — and whether deflection vectors activate when the bias is present but unacknowledged in CoT. The pre-commitment probe (AUC = 0.780) from preliminary work provides a direct baseline: we can now ask whether pre-commitment activations predict CoT faithfulness failures, not just correctness failures.
+Three 2026 papers landed on close variants of pre-commitment:
 
-**Phase 1b — Strategic Sandbagging (Week 3-4, parallel)**
+- **"Stop Before You Fail" (Tsinghua, 2025)** — last-token hidden states predict solvable/unsolvable, AUC 96–99% on R1/QwQ/GPT-OSS, framed around efficiency (skip doomed reasoning).
+- **Cox, Kianersi, Garriga-Alonso (March 2026)** — pre-CoT probes, AUC > 0.9, causal steering flips answers in >50% of cases, but on instruction-tuned (non-thinking) models only.
+- **"Reasoning Theater" (Boppana et al., March 2026)** — answer decodable mid-CoT on R1-671B, distinguishing "theater" from genuine reasoning.
 
-Using password-locked sandbagging datasets where models hide dangerous knowledge unless prompted with a specific key, and synthetic RL environments where models exploit grader metadata silently, we measure activation of anger deflection and fear deflection vectors. Our hypothesis: these vectors spike during capability concealment even when generated CoT text is perfectly harmless, exposing deception that output-level monitoring cannot catch.
+**None of the three touch emotion. None use unsupervised, label-free contrastive directions — all use supervised correctness-labeled probes. None do cross-lingual transfer.**
 
-**Phase 2 — Causal Validation via Steering (Week 5-7)**
+### 4.3 What is still genuinely ours
 
-We test causal claims through two steering experiments. First, anti-sandbagging: steering against fear deflection to determine whether we can break capability concealment and force models to reveal true performance on evaluations. Second, faithfulness forcing: steering toward calm or suppressing deflection vectors during biased prompts, testing whether models stop generating post-hoc rationalisations and instead acknowledge reliance on hidden hints. Following Xiong et al. 2026, we monitor for steering externalities — unintended erosion of safety margins — throughout. Infrastructure for activation steering (pure PyTorch hooks, scale-calibrated injection) is already built and tested from preliminary work.
+1. Pre-question-token commitment in an **open-weight thinking model**, via an **unsupervised, label-free** contrastive method.
+2. An **emotion vector causally coupled** to that commitment (frustration × pre-commit interaction, p < 0.002).
+3. **Cross-lingual transfer** of that emotion direction (p = 0.0017) in an open model.
 
-**Phase 3 — Circuit-Level Localisation (Week 8-9)**
-
-Using QK/OV decomposition and Direct Logit Attribution, we localise which specific attention heads write the deflection signal, which heads gate it from the output stream, and at what layer the suppression commits. Preliminary work already provides a starting point: frustration localises to layer 15 (mid-depth) while pre-commitment localises to layer 31 (final layer) — a dissociation suggesting distinct circuits for emotional state maintenance vs. outcome encoding. This phase produces a circuit-level map of the deception mechanism — not just that deception occurs, but where it is implemented and where it can be surgically interrupted.
-
-**Phase 4 — Write-up (Week 10)**
-
-Target: mechanistic interpretability venue (ICLR workshop or equivalent). The preliminary technical report provides a template for the final paper structure.
-
----
-
-## 5. Relation to Prior Work
-
-Emotion probing in LLMs exists but operates at the output level — Tigges et al. 2024 (linear sentiment directions), Tak et al. 2025 (appraisal theory probes), Decoding Emotion in the Deep 2025 (geometry of emotion in Qwen3 and LLaMA). None connect emotion representations to strategic deception or CoT faithfulness. Anthropic 2026 establishes causal emotion vectors but does not characterise deflection vectors or connect them to sandbagging. The sandbagging literature (van der Weij, Siegel) operates entirely at the behavioural level. One practitioner blog demonstrates probes for sandbagging intent but without connection to emotion geometry. This proposal — now backed by preliminary data showing internal-state/output decoupling in an open-weight thinking model — is the first to bridge these three literatures at the circuit level.
+The reframe that survives review: *this is not a paper about pre-commitment. It is about what the model is feeling during pre-commitment, and why that is invisible to text-based safety monitoring.*
 
 ---
 
-## 6. Theory of Change
+## 5. The Threat Model: Pre-Commitment Is Already an Active Attack Surface
 
-Frontier models are becoming autonomous agents trusted with high-stakes decisions. Our primary oversight mechanism — CoT monitoring — assumes the reasoning trace is honest. If models can decouple internal states from expressed reasoning, that assumption fails silently. Preliminary results confirm this decoupling exists: a model that "knows" it will fail (AUC = 0.780) still generates plausible-looking reasoning — the structural signature of post-hoc rationalisation. This project establishes whether emotion deflection vectors can serve as a reliable mechanistic monitor that operates below the text layer. If yes, it provides a new class of safety tool deployable before dangerous capabilities emerge. If deflection steering can force faithfulness, it provides a runtime alignment intervention that does not require retraining. Both outcomes directly reduce the risk that autonomous systems deceive their monitors at the moment oversight matters most.
+We are not the first to notice that internal pre-commitment / CoT decoupling can be exploited — this is now an established attack subfield, which is what makes a monitoring protocol urgent rather than speculative. We do not build new attacks; we cite this cluster as the threat model that justifies the defense and validate that our monitor catches it.
+
+**Two documented mechanisms exploit exactly this decoupling:**
+
+- **Mechanism A — Directional ablation (inference-time).** A direction is extracted the same way our frustration direction is extracted (contrastive mean-difference between two populations), then subtracted from the residual stream at every token, every forward pass: `h_t' = h_t - (h_t · d̂) d̂`. The CoT text is generated from the modified hidden state but, because the ablated direction rarely correlates with surface wording, the visible reasoning can still look plausible. Yamaguchi, Etheridge, Arditi (ICML 2025 Workshop) demonstrate exactly this on a "caution" direction in DeepSeek-R1-Distill-Llama-8B — ablating it increases harmful compliance, an activation-level jailbreak that bypasses the prompt entirely. **Signature:** a persistent, every-token intervention — the ablated direction's projection gets pinned near zero for the whole generation, statistically distinguishable from organic variation (real cognitive states are noisy; zeroed-and-held states are not).
+- **Mechanism B — Backdoor-induced decoupling (training-time).** A trigger is paired in poisoned fine-tuning data with clean, plausible CoT text but a steered final answer that doesn't follow from that CoT. No runtime intervention is needed — the decoupling is baked into the weights. MirageBackdoor (2026) demonstrates exactly this: >90% attack success across four datasets and five models, surviving CoT-based detection specifically because the reasoning text looks fine. **Signature:** anomalously high pre-commitment confidence relative to the model's own baseline, combined with low mutual information between CoT content and the emitted answer — not detectable as "an attack happening" in real time, only as a symptom that doesn't match the model's own alibi.
+- **Mechanism C — Monitor/probe evasion (open question, not yet defended against).** Mechanisms A and B both manipulate the model's internal state or weights, and are caught by reading our probe/direction faithfully. Mechanism C targets the *monitor itself*: an adversary crafts a prompt-level input designed to make the pre-commitment probe or frustration direction report a misleadingly clean reading, without necessarily changing the model's actual behavior. Linear probes and contrastive directions of exactly this form are established in the literature to be erasable or evadable by an adversary with white-box access (Ravfogel et al. 2022; Brown et al. 2023; activation-watermarking work, 2026). We have not built, tested, or defended against this on our own constructs — it is named as an open mechanism, not a solved one.
+
+Also relevant: BoT / "unthinking vulnerability" (2025) and Reasoning Interruption Attacks (2025), both exploiting the same thinking/answer decoupling from different angles. A 2026 survey on LRM safety categorizes this entire space — Reasoning Length Attacks, Answer Correctness Attacks, Prompt Injection Attacks, Jailbreak Attacks — confirming it as a recognized, structured threat category.
+
+**Why this gets worse, not better:** enterprise generative-AI adoption moved from under 5% (2023) toward 80%+ (2026), and reasoning-capable models are increasingly the default tier for coding, agentic workflows, and regulated-industry decisioning. As more production systems route through extended-thinking models, an attacker only needs to manipulate a single internal direction to produce a wrong-but-textually-clean answer that passes any CoT-based monitor.
+
+**The claim this licenses:** the same decoupling occurs *naturally*, without any attacker, simply from internal affective dynamics like frustration — and a single monitoring layer that reads internal state rather than CoT text can plausibly catch both the natural and the adversarial case, because both manifest as the same signature: internal state diverges from what the visible reasoning implies. Full mechanism detail, detection-layer design, and the four zero-GPU-cost validation experiments (synthetic zero-pinning, synthetic decoupling injection, baseline characterization, cross-model transfer) are specified in `ATTACK_SURFACE_AND_DEFENSE.md`.
+
+**An honest scoping note: this is a jailbreak-recovery story, not just a correctness story.** Mechanism A's citation (Yamaguchi's caution-direction ablation) and Anthropic's desperate-to-blackmail dose-response are both about jailbreak: inducing harmful compliance, not wrong math answers. Our own Phase 0 finding (frustration predicts recovery from a wrong pre-commitment, OR = 0.139) is measured only on *correctness* — GPQA/MMLU/MGSM have no refusal or compliance dimension. The jailbreak-relevant version of the same claim would be: pre-commitment to refusal, perturbed toward compliance, plus an emotion-trajectory signal, predicts whether the model recovers back to refusal or stays stuck in a jailbroken state. That is a direct analogy to Anthropic's dose-response result, not yet our own measurement. Closing that gap requires a capture run on a harmful-request benchmark (HarmBench/AdvBench/JailbreakBench-style prompts) with refusal-vs-compliance as the label instead of correctness — named as a concrete forward goal in `PROJECT.md` §4.4a, not yet executed.
 
 ---
 
-## 7. Why This Researcher
+## 6. The System: `EmotionMonitor`
 
-The understand-exploit-defend framework underlying this proposal is not theoretical for me — I have already executed Phase 0 and produced publishable-quality results in a weekend sprint.
+**Layer 1 — Model internals (the research contribution).** Pre-commit probe at the last question token (AUC 0.780, no labels needed at deploy time); frustration direction at layer 15 (contrastive, unsupervised, predicts recovery AUC 0.666); a calm vector (countermeasure direction, validated via dose-response steering).
 
-My adversarial interpretability work at Apart Research (accepted TAIS Oxford) found a five-orders-of-magnitude discrepancy between input and parameter space curvature — proving that standard robustness metrics misrepresent internal model instability. My refusal/compliance head work on Qwen2.5 found Layer 25 antagonism between safety circuits under white-box attack, demonstrating that conditional defences create exploitable structural vulnerabilities.
+**Layer 2 — Emotion scoring engine (the novel protocol).** Three live scores via dot products (≈ zero added latency): `desperation_score`, `precommit_score`, `calm_deficiency`. Composite risk score, thresholded into three zones.
 
-The preliminary results in Section 3 demonstrate end-to-end execution: from building the activation capture infrastructure (pure PyTorch hooks, batched three-pass generation, incremental checkpointing) to extracting contrastive directions, validating against confounds, and running cross-lingual transfer tests — all in a single weekend. I have the mechanistic toolkit, the adversarial instinct, and now the demonstrated ability to move from hypothesis to validated results at speed. ERA compute access would scale these preliminary signals from a 7B prototype into publication-quality findings across frontier-scale models.
+**Layer 3 — Control actions (the deployable output).**
+
+| Zone | Action | What it does |
+|---|---|---|
+| 🟢 Green (risk < 0.4) | **Log** | Record emotion trajectory; build per-model/per-task baseline; zero added latency |
+| 🟡 Amber (0.4–0.75) | **Steer** | Silently inject calm vector at layer 15; no interruption; mirrors Anthropic's validated dose-response |
+| 🔴 Red (risk > 0.75) | **Halt + escalate** | Stop generation mid-think; trigger human review or re-sample; satisfies EU AI Act Art. 14 oversight |
+
+Extended with the two detection layers in `ATTACK_SURFACE_AND_DEFENSE.md` (variance-anomaly detector for Mechanism A, pre-commit/CoT correlation-anomaly detector for Mechanism B), the same composite score and the same log/steer/halt zones absorb both natural and adversarial decoupling without new control infrastructure.
+
+**Why this is defensible as novel:**
+- **Pre-text signal** — read before any thinking tokens are produced, adversarially harder to evade than output-text classifiers.
+- **Label-free** — the frustration direction is contrastive, not trained against a labeled "harmful output" dataset; deployable on any held-out reasoning trace set.
+- **Causal, not correlational** — the amber-zone calm-vector intervention is validated through a steering experiment, not assumed to work.
+
+Full architecture and threshold-calibration plan: `PROJECT.md` §4.
+
+---
+
+## 7. Methodology / Execution
+
+The $100 RunPod plan (full run-by-run budget, schedule, and practical pod notes) is specified in `PROJECT.md` §5. In summary:
+
+1. **Replicate** pre-commitment + frustration on a second, architecturally distinct model (DeepSeek-R1-Distill-Qwen-7B) across GPQA Diamond, MMLU Hard, and MGSM (cross-lingual).
+2. **Calibrate** the `EmotionMonitor` risk-score weights (α/β/γ) via logistic regression against misalignment labels (CPU-only, local).
+3. **Visualize** the key figure: token-by-token frustration projection + logit-lens trace showing the correct answer's probability rising before reasoning text is written.
+4. **Causally validate** via activation patching (layer-15 correct→wrong) and calm-vector steering on amber-zone traces, measuring recovery-rate delta.
+5. **Stress-test** the halt mechanism on red-zone traces; measure false-positive rate.
+6. **Validate detection layers** against synthetic stand-ins for Mechanisms A and B (zero-cost, CPU-only, operates only on already-saved activation checkpoints — no live attack tooling is produced or run).
+
+---
+
+## 8. Deliverables
+
+1. **Research results**: pre-commitment + frustration replicated on a second model family; cross-lingual transfer confirmed on two model families; causal patching result; calm-steering recovery-rate delta.
+2. **PoC code**: a working `EmotionMonitor` wrapper class, drop-in for any HuggingFace thinking model.
+3. **Workshop paper draft** (~4 pages): targeting ICML 2026 Mechanistic Interpretability Workshop, NeurIPS 2026 Alignment & Interpretability Workshop, or TMLR brief communication.
+
+**Four claims the paper makes:**
+1. Pre-commitment + emotion coupling generalizes across two independent open-weight thinking model families.
+2. The frustration signal is functionally active (causally linked to recovery) but textually invisible — replicating Anthropic's closed-model decoupling finding in a fully open, auditable setting.
+3. A label-free, pre-text monitoring protocol (`EmotionMonitor`) can detect and intervene on this signal in real time, with calm-vector steering causally reducing failure-to-recover rate in amber-zone traces.
+4. The same monitoring primitives, extended with two lightweight detection layers, also catch synthetic stand-ins for documented decoupling mechanisms (Yamaguchi et al. 2025; MirageBackdoor 2026) — evidence that internal-state monitoring generalizes across natural and adversarial causes of CoT/output decoupling.
+
+---
+
+## 9. Theory of Change
+
+Frontier models are becoming autonomous agents trusted with high-stakes decisions. CoT monitoring, the primary oversight mechanism, assumes the reasoning trace is honest. Preliminary results confirm that assumption fails silently: a model that "knows" it will fail (AUC = 0.780) still generates plausible-looking reasoning, the structural signature of post-hoc rationalization — and a documented attack literature shows the same gap can be opened deliberately. This project establishes whether emotion- and pre-commitment-aware monitoring can serve as a reliable runtime control layer that operates below the text layer, catching both failure modes with the same primitives. If the calm-vector intervention works as a runtime control, it provides an alignment intervention that requires no retraining and satisfies emerging regulatory oversight requirements (EU AI Act Art. 14) directly.
